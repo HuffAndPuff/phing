@@ -55,6 +55,13 @@ class SshTask extends Task {
      */
     private $display = true;
 
+    /**
+      * Array of environment variables (type SshEnv) that
+      * will be set before running the command.
+      * @var array
+      */
+    private $envs = array();
+
     public function setHost($host) 
     {
         $this->host = $host;
@@ -200,9 +207,24 @@ class SshTask extends Task {
         return $this->methods;
     }
 
+    public function createEnv()
+    {
+        $newenv = new SshEnv();
+        $this->envs[] = $newenv;
+        return $newenv;
+    }
 
     public function init() 
     {
+    }
+
+    protected function getEnvArray()
+    {
+        $envs = array();
+        foreach($this->envs as $env) {
+            $envs[$env->getName()] = $env->getValue();
+        }
+        return $envs;
     }
 
     public function main() 
@@ -230,11 +252,11 @@ class SshTask extends Task {
             throw new BuildException("Could not authenticate connection!");
         }
 
+        $pty = NULL;
         if ($this->pty != '') {
-            $stream = ssh2_exec($this->connection, $this->command, $this->pty);
-        } else {
-            $stream = ssh2_exec($this->connection, $this->command);
+            $pty = $this->pty;
         }
+        $stream = ssh2_exec($this->connection, $this->command, $pty, $this->getEnvArray());
 
         if (!$stream) {
             throw new BuildException("Could not execute command!");
@@ -269,3 +291,21 @@ class SshTask extends Task {
     }
 }
 
+class SshEnv {
+    private $name;
+    private $value;
+
+    public function setName($name) {
+        $this->name = $name;
+    }
+    public function getName() {
+        return $this->name;
+    }
+
+    public function setValue($value) {
+        $this->value = $value;
+    }
+    public function getValue() {
+        return $this->value;
+    }
+}
